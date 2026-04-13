@@ -3,8 +3,8 @@ module github.com/Shreyaskr1409/redpanda
 go 1.25.0
 
 require (
-	github.com/Shreyaskr1409/VidiMasta v0.0.0-20260318100956-8d4639684f83
 	github.com/golang-jwt/jwt/v5 v5.3.1
+	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/schema v1.4.1
 	github.com/jackc/pgx/v5 v5.9.1

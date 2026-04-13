@@ -1,0 +1,19 @@
+version: "3.9"
+name: redpanda
+
+services:
+  postgres:
+    image: postgres:18.3
+    restart: always
+    ports:
+      - 5432:5432
+    shm_size: 128mb
+    environment:
+      POSTGRES_USER: redpanda
+      POSTGRES_PASSWORD: abcdefgh
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8080:8080

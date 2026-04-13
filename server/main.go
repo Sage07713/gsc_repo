@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -35,8 +36,9 @@ func main() {
 
 	routes.HandleUserRoutes(router, l, database.DB)
 
+	listen_port := fmt.Sprint(":", os.Getenv("PORT"))
 	s := &http.Server{
-		Addr:         ":8080",
+		Addr:         listen_port,
 		Handler:      router,
 		IdleTimeout:  120 * time.Second,
 		ReadTimeout:  20 * time.Second,
@@ -46,10 +48,10 @@ func main() {
 	go func() {
 		err := s.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
-			l.Fatal(err)
+			l.Panic(err)
 		}
 	}()
-	l.Println("Server is listening at port :8080")
+	l.Println("Server is listening at port", listen_port)
 
 	shutdownChannel := make(chan os.Signal, 1)
 	signal.Notify(shutdownChannel, os.Interrupt, syscall.SIGTERM)

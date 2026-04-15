@@ -1,0 +1,104 @@
+{
+  "type": "object",
+  "properties": {
+    "device_id": {
+      "type": "string"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "environment": {
+      "type": "object",
+      "properties": {
+        "temperature_c": { "type": "number" },
+        "gas_leak": { "type": "boolean" },
+        "abnormal_sound": { "type": "boolean" }
+      },
+      "required": ["temperature_c", "gas_leak", "abnormal_sound"]
+    },
+
+    "vision": {
+      "type": "object",
+      "properties": {
+        "fire_detected": { "type": "boolean" },
+        "fire_confidence": { "type": "number" },
+        "smoke_detected": { "type": "boolean" },
+        "smoke_confidence": { "type": "number" }
+      },
+      "required": [
+        "fire_detected",
+        "fire_confidence",
+        "smoke_detected",
+        "smoke_confidence"
+      ]
+    },
+
+    "human_analysis": {
+      "type": "object",
+      "properties": {
+        "human_present": { "type": "boolean" },
+        "people_count": { "type": "integer" },
+        "posture": {
+          "type": "string",
+          "enum": ["standing", "lying", "unknown"]
+        },
+        "motion_state": {
+          "type": "string",
+          "enum": ["low", "none", "normal"]
+        }
+      },
+      "required": [
+        "human_present",
+        "people_count",
+        "posture",
+        "motion_state"
+      ]
+    },
+
+    "situation": {
+      "type": "object",
+      "properties": {
+        "hazard_type": {
+          "type": "string",
+          "enum": ["fire", "gas_leak", "fire_gas_leak", "normal"]
+        },
+        "severity_score": { "type": "number" },
+        "risk_level": {
+          "type": "string",
+          "enum": ["critical", "high", "moderate"]
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["immediate", "urgent", "monitor"]
+        }
+      },
+      "required": [
+        "hazard_type",
+        "severity_score",
+        "risk_level",
+        "priority"
+      ]
+    },
+
+    "meta": {
+      "type": "object",
+      "properties": {
+        "camera_id": { "type": "string" },
+        "location": { "type": "string" }
+      },
+      "required": ["camera_id", "location"]
+    }
+  },
+
+  "required": [
+    "device_id",
+    "timestamp",
+    "environment",
+    "vision",
+    "human_analysis",
+    "situation",
+    "meta"
+  ]
+}

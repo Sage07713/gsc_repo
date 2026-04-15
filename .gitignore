@@ -5,3 +5,4 @@ kalu
 build/
 chota
 weights
+__pycache__

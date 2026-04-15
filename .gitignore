@@ -3,5 +3,5 @@
 kalu
 .env
 build/
-weights/
 chota
+weights

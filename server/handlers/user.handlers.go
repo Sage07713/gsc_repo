@@ -214,7 +214,6 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 func (h *UserHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	user, ok := r.Context().Value("user").(*data.User)
-	h.l.Println(user)
 	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -253,26 +252,18 @@ func (h *UserHandler) Logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" {
-		http.Error(w, "Authorization header required", http.StatusUnauthorized)
-		return
-	}
-
-	tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
-	claims, err := data.ValidateAccessToken(tokenStr)
-	if err != nil {
-		h.l.Println("Invalid token: ", err)
-		http.Error(w, "Invalid token", http.StatusUnauthorized)
+	auth_user, ok := r.Context().Value("user").(*data.User)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
 	var user data.User
 	ctx := context.Background()
-	err = h.db.QueryRow(ctx,
+	err := h.db.QueryRow(ctx,
 		`SELECT id, username, fullname, email, created_at, updated_at
         FROM users WHERE id = $1`,
-		claims.UserId,
+		auth_user.Id,
 	).Scan(
 		&user.Id,
 		&user.Username,
@@ -332,17 +323,9 @@ func (h *UserHandler) GetUserByUsername(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" {
-		http.Error(w, "Authorization header required", http.StatusUnauthorized)
-		return
-	}
-
-	tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
-	claims, err := data.ValidateAccessToken(tokenStr)
-	if err != nil {
-		h.l.Println("Invalid token: ", err)
-		http.Error(w, "Invalid token", http.StatusUnauthorized)
+	auth_user, ok := r.Context().Value("user").(*data.User)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
@@ -360,11 +343,11 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	// Check if new username or email already exists
 	var exists bool
 	ctx := context.Background()
-	err = h.db.QueryRow(ctx,
+	err := h.db.QueryRow(ctx,
 		"SELECT EXISTS(SELECT 1 FROM users WHERE (username = $1 OR email = $2) AND id != $3)",
 		updateReq.Username,
 		updateReq.Email,
-		claims.UserId,
+		auth_user.Id,
 	).Scan(&exists)
 	if err != nil {
 		h.l.Println("Database error while checking credentials: ", err)
@@ -387,7 +370,7 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		updateReq.Fullname,
 		updateReq.Email,
 		time.Now(),
-		claims.UserId,
+		auth_user.Id,
 	)
 	if err != nil {
 		h.l.Println("Database error updating user: ", err)
@@ -399,17 +382,9 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" {
-		http.Error(w, "Authorization header required", http.StatusUnauthorized)
-		return
-	}
-
-	tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
-	claims, err := data.ValidateAccessToken(tokenStr)
-	if err != nil {
-		h.l.Println("Invalid token: ", err)
-		http.Error(w, "Invalid token", http.StatusUnauthorized)
+	auth_user, ok := r.Context().Value("user").(*data.User)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
@@ -431,9 +406,9 @@ func (h *UserHandler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
 	// Get current password hash
 	var currentHash string
 	ctx := context.Background()
-	err = h.db.QueryRow(ctx,
+	err := h.db.QueryRow(ctx,
 		"SELECT password FROM users WHERE id = $1",
-		claims.UserId,
+		auth_user.Id,
 	).Scan(&currentHash)
 	if err != nil {
 		h.l.Println("Database error while fetching user: ", err)
@@ -461,7 +436,7 @@ func (h *UserHandler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
 		"UPDATE users SET password = $1, updated_at = $2 WHERE id = $3",
 		newHash,
 		time.Now(),
-		claims.UserId,
+		auth_user.Id,
 	)
 	if err != nil {
 		h.l.Println("Database error updating password: ", err)

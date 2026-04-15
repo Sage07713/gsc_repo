@@ -45,7 +45,7 @@ func AuthMiddleware(db *pgxpool.Pool) func(http.Handler) http.Handler {
 
 func extractToken(r *http.Request) string {
 	cookie, err := r.Cookie("accessToken")
-	if err != nil && cookie.Value != "" {
+	if err == nil && cookie.Value != "" {
 		return cookie.Value
 	}
 
@@ -61,7 +61,7 @@ func extractToken(r *http.Request) string {
 
 func GetUserFromDB(ctx context.Context, pool *pgxpool.Pool, userID string) (*data.User, error) {
 	query := `
-	SELECT _id, username, email
+	SELECT id, username, email
 	FROM users
 	WHERE id = $1
 	`

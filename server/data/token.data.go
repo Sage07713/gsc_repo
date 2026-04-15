@@ -8,10 +8,8 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var (
-	accessSecret  = []byte(os.Getenv("ACCESSTOKENSECRET"))
-	refreshSecret = []byte(os.Getenv("REFRESHTOKENSECRET"))
-)
+var accessSecret []byte
+var refreshSecret []byte
 
 const (
 	accessExpiry  = 15 * time.Minute
@@ -22,6 +20,11 @@ type Claims struct {
 	UserId   string `json:"_id"`
 	Username string `json:"username"`
 	jwt.RegisteredClaims
+}
+
+func InitTokenSecrets() {
+	accessSecret = []byte(os.Getenv("ACCESSTOKENSECRET"))
+	refreshSecret = []byte(os.Getenv("REFRESHTOKENSECRET"))
 }
 
 func GenerateAccessToken(user *User) (string, error) {

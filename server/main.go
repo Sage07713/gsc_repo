@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Shreyaskr1409/redpanda/data"
 	"github.com/Shreyaskr1409/redpanda/database"
 	"github.com/Shreyaskr1409/redpanda/middlewares"
 	"github.com/Shreyaskr1409/redpanda/routes"
@@ -21,6 +22,8 @@ func main() {
 	godotenv.Load()
 	l := log.New(os.Stdout, "auth: ", log.LstdFlags)
 	l.Println("Logging starts")
+
+	data.InitTokenSecrets()
 
 	database.Init(l)
 	defer database.Close()

@@ -36,7 +36,7 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	if strings.TrimSpace(userReq.Username) == "" ||
 		strings.TrimSpace(userReq.Email) == "" ||
-		strings.TrimSpace(userReq.Email) == "" ||
+		strings.TrimSpace(userReq.Role) == "" ||
 		strings.TrimSpace(userReq.Fullname) == "" {
 		http.Error(w, "All fields are required", http.StatusBadRequest)
 		return
@@ -71,35 +71,24 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = h.db.Exec(ctx,
+	var id string
+	err = h.db.QueryRow(ctx,
 		`INSERT INTO users
-		(username, fullname, email, password, refresh_token, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		(username, fullname, email, role, password, refresh_token, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		RETURNING id`,
 		userReq.Username,
 		userReq.Fullname,
 		userReq.Email,
+		userReq.Role,
 		hashedPassword,
 		refreshToken,
 		now,
 		now,
-	)
+	).Scan(&id)
 	if err != nil {
 		h.l.Println("Database error creating user: ", err)
 		http.Error(w, "Failed to create user", http.StatusInternalServerError)
-		return
-	}
-
-	var id string
-	err = h.db.QueryRow(ctx,
-		`SELECT id
-        FROM users WHERE username = $1 OR email = $1`,
-		&userReq.Username,
-	).Scan(
-		id,
-	)
-	if err != nil {
-		h.l.Println("Database error while fetching user: ", err)
-		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 		return
 	}
 
@@ -108,6 +97,7 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		Username:     userReq.Username,
 		Fullname:     userReq.Fullname,
 		Email:        userReq.Email,
+		Role:         userReq.Role,
 		RefreshToken: refreshToken,
 		CreatedAt:    now,
 		UpdatedAt:    now,
@@ -198,6 +188,23 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		"refresh_token": refreshToken,
 	}
 
+	http.SetCookie(w, &http.Cookie{
+		Name:     "accessToken",
+		Value:    accessToken,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		MaxAge:   3 * 60,
+	})
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refreshToken",
+		Value:    refreshToken,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		MaxAge:   60 * 60 * 24 * 7,
+	})
+
 	w.Header().Set("Content-Type", "application/json")
 	if err = json.NewEncoder(w).Encode(response); err != nil {
 		h.l.Println("Error encoding response:", err)
@@ -206,25 +213,16 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) Logout(w http.ResponseWriter, r *http.Request) {
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" {
-		http.Error(w, "Authorization header required", http.StatusUnauthorized)
+	user, ok := r.Context().Value("user").(*data.User)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
-	claims, err := data.ValidateAccessToken(tokenStr)
-	if err != nil {
-		h.l.Println("Invalid token: ", err)
-		http.Error(w, "Invalid token", http.StatusUnauthorized)
-		return
-	}
-
-	ctx := context.Background()
-	_, err = h.db.Exec(ctx,
-		"UPDATE users SET refresh_token = NULL, updated_at = $1 WHERE id = $2",
+	_, err := h.db.Exec(context.Background(),
+		"UPDATE users SET refresh_token = '', updated_at = $1 WHERE id = $2",
 		time.Now(),
-		claims.UserId,
+		user.Id,
 	)
 	if err != nil {
 		h.l.Println("Database error during logout: ", err)
@@ -254,26 +252,18 @@ func (h *UserHandler) Logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" {
-		http.Error(w, "Authorization header required", http.StatusUnauthorized)
-		return
-	}
-
-	tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
-	claims, err := data.ValidateAccessToken(tokenStr)
-	if err != nil {
-		h.l.Println("Invalid token: ", err)
-		http.Error(w, "Invalid token", http.StatusUnauthorized)
+	auth_user, ok := r.Context().Value("user").(*data.User)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
 	var user data.User
 	ctx := context.Background()
-	err = h.db.QueryRow(ctx,
+	err := h.db.QueryRow(ctx,
 		`SELECT id, username, fullname, email, created_at, updated_at
         FROM users WHERE id = $1`,
-		claims.UserId,
+		auth_user.Id,
 	).Scan(
 		&user.Id,
 		&user.Username,
@@ -333,17 +323,9 @@ func (h *UserHandler) GetUserByUsername(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" {
-		http.Error(w, "Authorization header required", http.StatusUnauthorized)
-		return
-	}
-
-	tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
-	claims, err := data.ValidateAccessToken(tokenStr)
-	if err != nil {
-		h.l.Println("Invalid token: ", err)
-		http.Error(w, "Invalid token", http.StatusUnauthorized)
+	auth_user, ok := r.Context().Value("user").(*data.User)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
@@ -361,11 +343,11 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	// Check if new username or email already exists
 	var exists bool
 	ctx := context.Background()
-	err = h.db.QueryRow(ctx,
+	err := h.db.QueryRow(ctx,
 		"SELECT EXISTS(SELECT 1 FROM users WHERE (username = $1 OR email = $2) AND id != $3)",
 		updateReq.Username,
 		updateReq.Email,
-		claims.UserId,
+		auth_user.Id,
 	).Scan(&exists)
 	if err != nil {
 		h.l.Println("Database error while checking credentials: ", err)
@@ -388,7 +370,7 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		updateReq.Fullname,
 		updateReq.Email,
 		time.Now(),
-		claims.UserId,
+		auth_user.Id,
 	)
 	if err != nil {
 		h.l.Println("Database error updating user: ", err)
@@ -400,17 +382,9 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" {
-		http.Error(w, "Authorization header required", http.StatusUnauthorized)
-		return
-	}
-
-	tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
-	claims, err := data.ValidateAccessToken(tokenStr)
-	if err != nil {
-		h.l.Println("Invalid token: ", err)
-		http.Error(w, "Invalid token", http.StatusUnauthorized)
+	auth_user, ok := r.Context().Value("user").(*data.User)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
@@ -432,9 +406,9 @@ func (h *UserHandler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
 	// Get current password hash
 	var currentHash string
 	ctx := context.Background()
-	err = h.db.QueryRow(ctx,
+	err := h.db.QueryRow(ctx,
 		"SELECT password FROM users WHERE id = $1",
-		claims.UserId,
+		auth_user.Id,
 	).Scan(&currentHash)
 	if err != nil {
 		h.l.Println("Database error while fetching user: ", err)
@@ -462,7 +436,7 @@ func (h *UserHandler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
 		"UPDATE users SET password = $1, updated_at = $2 WHERE id = $3",
 		newHash,
 		time.Now(),
-		claims.UserId,
+		auth_user.Id,
 	)
 	if err != nil {
 		h.l.Println("Database error updating password: ", err)

@@ -2,19 +2,17 @@
 
 show_menu() {
     echo "================================================"
-    echo "       Redpanda Server - Podman Manager"
+    echo "     Redpanda Video Stream - Podman Manager"
     echo "================================================"
     echo "1. Start (build + up)"
     echo "2. Stop"
     echo "3. Restart"
     echo "4. Status"
     echo "5. Logs (all services)"
-    echo "6. Logs (postgres)"
-    echo "7. Logs (adminer)"
-    echo "8. Logs (server)"
-    echo "9. Rebuild server"
-    echo "10. Clean (down + remove image)"
-    echo "11. Shell into server"
+    echo "6. Logs (stream)"
+    echo "7. Rebuild streamer"
+    echo "8. Clean (down + remove image)"
+    echo "9. Shell into streamer"
     echo "0. Exit"
     echo "================================================"
 }
@@ -39,34 +37,25 @@ status() {
 logs_all() {
     podman-compose logs -f
 }
-
-logs_postgres() {
-    podman logs -f postgres
+logs_stream() {
+    podman logs -f vid-stream
 }
 
-logs_adminer() {
-    podman logs -f adminer
-}
-
-logs_server() {
-    podman logs -f server
-}
-
-rebuild_server() {
+rebuild_stream() {
     podman-compose stop
     podman rm -f server 2>/dev/null
-    podman rmi localhost/redpanda_server 2>/dev/null
+    podman rmi localhost/vid-stream 2>/dev/null
     podman-compose up --build -d
 }
 
 clean() {
     podman-compose down --remove-orphans
-    podman rmi localhost/redpanda_server 2>/dev/null
+    podman rmi localhost/vid-stream 2>/dev/null
     echo "Done."
 }
 
-shell_server() {
-    podman exec -it server sh
+shell_stream() {
+    podman exec -it vid-stream sh
 }
 
 prune() {
@@ -80,12 +69,10 @@ if [ -n "$1" ]; then
         restart)  restart ;;
         status)  status ;;
         logs_all)  logs_all ;;
-        logs_postgres)  logs_postgres ;;
-        logs_adminer)  logs_adminer ;;
-        logs_server)  logs_server ;;
-        rebuild_server) rebuild_server ;;
+        logs_stream)  logs_stream ;;
+        rebuild_stream) rebuild_stream ;;
         clean) clean ;;
-        shell_server) shell_server ;;
+        shell_stream) shell_stream ;;
         *) echo "Usage: $0 {start|stop|restart|status|logs_all|logs_postgres|logs_adminer|logs_server|rebuild_server|clean|shell_server}" ;;
     esac
     exit 0
@@ -100,12 +87,10 @@ while true; do
         3)  restart ;;
         4)  status ;;
         5)  logs_all ;;
-        6)  logs_postgres ;;
-        7)  logs_adminer ;;
-        8)  logs_server ;;
-        9)  rebuild_server ;;
-        10) clean ;;
-        11) shell_ingestion ;;
+        6)  logs_stream ;;
+        7)  rebuild_stream ;;
+        8)  clean ;;
+        9)  shell_stream ;;
         0)  exit 0 ;;
         *)  echo "Error: choose a number between 0 and 12" ;;
     esac

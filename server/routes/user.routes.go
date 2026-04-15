@@ -16,14 +16,16 @@ func HandleUserRoutes(router *mux.Router, l *log.Logger, db *pgxpool.Pool) {
 	userRouter := router.PathPrefix("/api/v1/users").Subrouter()
 
 	userRouter.HandleFunc("/user", userHandler.GetUser).Methods("GET")
-	userRouter.HandleFunc("/{username}", userHandler.GetUserByUsername).Methods("GET")
 	userRouter.HandleFunc("/register", userHandler.Register).Methods("POST")
 	userRouter.HandleFunc("/login", userHandler.Login).Methods("POST")
-	userRouter.HandleFunc("/logout", userHandler.Logout).Methods("GET")
 
-	authUserRouter := router.PathPrefix("/api/v1/users").Subrouter()
+	authUserRouter := userRouter.NewRoute().Subrouter()
 	authUserRouter.Use(authMiddlewareHandler)
 
+	authUserRouter.HandleFunc("/logout", userHandler.Logout).Methods("GET")
 	authUserRouter.HandleFunc("/update", userHandler.UpdateUser).Methods("PATCH")
 	authUserRouter.HandleFunc("/update-password", userHandler.UpdatePassword).Methods("PATCH")
+
+	// need to put this at last always
+	userRouter.HandleFunc("/{username}", userHandler.GetUserByUsername).Methods("GET")
 }

@@ -1,0 +1,36 @@
+{
+  "device_id": "pi-001",
+  "timestamp": "2026-04-13T14:30:00Z",
+
+  "environment": {
+    "temperature_c": 78,
+    "gas_leak": true,
+    "abnormal_sound": true
+  },
+
+  "vision": {
+    "fire_detected": true,
+    "fire_confidence": 0.91,
+    "smoke_detected": true,
+    "smoke_confidence": 0.85
+  },
+
+  "human_analysis": {
+    "human_present": true,
+    "people_count": 2,
+    "posture": "lying",
+    "motion_state": "low"
+  },
+
+  "situation": {
+    "hazard_type": "fire_gas_leak",
+    "severity_score": 10.0,
+    "risk_level": "critical",
+    "priority": "immediate"
+  },
+
+  "meta": {
+    "camera_id": "lobby_cam_1",
+    "location": "Building A - Ground Floor"
+  }
+}

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 *.iml
 .gradle
 /local.properties
@@ -13,3 +14,12 @@
 .externalNativeBuild
 .cxx
 local.properties
+=======
+.vscode
+.idea
+kalu
+.env
+build/
+chota
+weights
+>>>>>>> 70fbc73721680dcab2c4f20de83316fec3a708b6

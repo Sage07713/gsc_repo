@@ -1,0 +1,15 @@
+version: "3.9"
+name: redpanda
+
+services:
+  vid-stream:
+    image: localhost/vid-stream:latest
+    build:
+      context: .
+      dockerfile: Containerfile
+    container_name: vid-stream
+    ports:
+      - "5000:5000"
+    devices:
+      - /dev/video0:/dev/video0
+      - /dev/video1:/dev/video1

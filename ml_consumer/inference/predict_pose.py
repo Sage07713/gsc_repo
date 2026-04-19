@@ -44,7 +44,7 @@ L_ANKLE,    R_ANKLE    = 15, 16
 class PoseAnalyzer:
     def __init__(
         self,
-        fallback_weights:      str   = "weights/yolo11s-pose.pt",
+        fallback_weights:      str   = "weights/yolo11n-pose.pt",
         device:                str   = "cpu",
         pose_conf_threshold:   float = 0.65,   # FIX-4: injectable param
         min_visible_keypoints: int   = 7,       # FIX-2: raised from 3

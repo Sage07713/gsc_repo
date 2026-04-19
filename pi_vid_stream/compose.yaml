@@ -8,6 +8,8 @@ services:
       context: .
       dockerfile: Containerfile
     container_name: vid-stream
+    ports:
+      - "5000:5000"
     devices:
       - /dev/video0:/dev/video0
       - /dev/video1:/dev/video1

@@ -67,8 +67,8 @@ def _load_config(path: str = "config.json") -> dict:
             "go_backend_url":   "ws://localhost:3000/ws/stream",
             "compute_device":   "cpu", 
             "vision_weights":   "ml_consumer/weights/best.pt",
-            "pose_weights":     "weights/yolo11s-pose.pt",
-            "motion_weights":   "yolo11s.pt",
+            "pose_weights":     "weights/yolo11n-pose.pt",
+            "motion_weights":   "yolo11n.pt",
             "crisis_cooldown":  5.0,
             "heartbeat_cooldown": 30.0,
             "jpeg_quality":     80,
@@ -178,7 +178,7 @@ async def run_sentinel_ml():
             await asyncio.sleep(0.1)
             continue
         
-        frame = cv2.resize(frame, (640, 480))
+        frame = cv2.resize(frame, (320, 240))
 
         # ── FIX-4: compute real elapsed time and tick pose engine ──────────────
         now         = time.time()

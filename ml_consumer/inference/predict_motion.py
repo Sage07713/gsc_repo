@@ -45,7 +45,7 @@ except ImportError:
 class MotionAnalyzer:
     def __init__(
         self,
-        person_weights:          str   = "yolo11s.pt",   # FIX-1: correct name
+        person_weights:          str   = "yolo11n.pt",   # FIX-1: correct name
         device:                  str   = "cpu",
         velocity_panic_threshold: float = 25.0,           # FIX-4: injectable
         velocity_medium_threshold: float = 12.0,

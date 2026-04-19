@@ -1,4 +1,13 @@
-ultralytics>=8.0.0
 opencv-python>=4.8.0
 websockets>=11.0
 numpy
+ultralytics>=8.3.0
+
+# RTMPose / MMPose
+openmim
+mmengine
+mmcv>=2.0.0
+mmpose>=1.1.0
+
+# ByteTrack via supervision
+supervision>=0.21.0

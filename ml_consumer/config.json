@@ -1,0 +1,46 @@
+{
+  "pi_stream_url": "http://192.168.1.100:5000/video_feed",
+  "rabbitmq_host": "localhost",
+  "rabbitmq_queue": "sentinel_alerts",
+  "compute_device": "cpu",
+  "device_id": "pi-001",
+  "camera_id": "lobby_cam_1",
+  "location": "Building A - Ground Floor",
+
+  "vision_weights":   "ml_consumer/weights/best.pt",
+  "pose_weights":     "weights/yolo11n-pose.pt",
+  "motion_weights":   "yolo11n.pt",
+
+  "crisis_cooldown":    5.0,
+  "heartbeat_cooldown": 30.0,
+  "jpeg_quality":       80,
+
+"vision": {
+    "fire_conf_thresh":  0.52,
+    "smoke_conf_thresh": 0.48,
+    "infer_conf":        0.40,
+    "temporal_window":   7,
+    "majority_votes":    4
+  },
+
+  "pose": {
+    "pose_conf_threshold":    0.65,
+    "min_visible_keypoints":  7,
+    "kp_visibility_min":      0.30,
+    "lying_pixel_threshold":  120,
+    "hip_shoulder_threshold": 90,
+    "crouch_angle_max":       80,
+    "crouch_angle_min":       10,
+    "crawl_hip_height_ratio": 0.35
+  },
+
+  "motion": {
+    "velocity_panic_threshold":  25.0,
+    "velocity_medium_threshold": 12.0,
+    "min_tracks_for_stampede":   3,
+    "still_velocity_threshold":  1.5,
+    "still_alert_seconds":       6.0,
+    "person_detection_conf":     0.45,
+    "velocity_history_len":      5
+  }
+}

@@ -7,3 +7,7 @@ chota
 weights
 __pycache__/
 *.pyc
+.venv/
+*.log
+*.mp4
+outputs/

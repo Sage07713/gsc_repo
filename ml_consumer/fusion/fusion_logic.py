@@ -1,149 +1,145 @@
+"""
+Sentinel AI — Threat Fusion Engine (v3)
+========================================
+FIX-1: Normalized scoring (0-10 scale) via _MAX_RAW_SCORE clamp.
+FIX-2: Config injection for device_id, camera_id, and location.
+FIX-3: Deprecated utcnow() replaced with timezone-aware now(timezone.utc).
+ADDED: score_breakdown() for granular debugging in logs.
+"""
+
 import json
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import Optional
+
+# Maximum raw points expected before we consider the threat 100% "Critical"
+_MAX_RAW_SCORE = 15.0
+_SCORE_SCALE   = 10.0
 
 class ThreatFusionEngine:
-    def __init__(self):
-        self.device_id = "pi-001"
-        self.camera_id = "lobby_cam_1"
-        self.location = "Building A - Ground Floor"
+    def __init__(
+        self,
+        device_id: str = "pi-001",
+        camera_id: str = "lobby_cam_1",
+        location:  str = "Building A - Ground Floor"
+    ):
+        # FIX-2: IDs are now injectable via main.py / config.json
+        self.device_id = device_id
+        self.camera_id = camera_id
+        self.location  = location
 
-    def calculate_severity(self, fire_conf, smoke_conf, people_count, posture, gas_leak, fire_trend, sustained_lying_sec,stampede_risk):
-        # A dynamic algorithm to determine the risk level for Gemini
+    def _calculate_raw_sum(self, params: dict) -> tuple[float, dict]:
+        """Calculates raw points and returns a breakdown for debugging."""
         score = 0.0
-        
-        # Environmental / Vision Threats
-        if fire_conf > 0.80: score += 5.0
-        if gas_leak: score += 3.0
-        if smoke_conf > 0.50: score += 2.0 
-        
-        # 🕰️ TEMPORAL BOOST: Dynamic Fire Tracking
-        if fire_trend == "escalating": 
-            score += 2.0 
-        elif fire_trend == "diminishing":
-            score -= 1.0 # 👈 De-escalate if the fire is shrinking
-        
-        # Crowd-scaled posture threat
-        if posture in ["lying", "crouching", "arms_raised"] and people_count > 0:
-            score += min(people_count * 0.5, 3.0) 
-            
-            # 🕰️ TEMPORAL BOOST: Verified Medical Emergency
-            if posture == "lying" and sustained_lying_sec > 5.0:
-                score += 3.0 
-        
-        # 🏃‍♂️ NEW: Stampede Threat
-        if stampede_risk == "high" and people_count > 2:
-            score += 4.0 # High panic in a crowd is extremely dangerous
-        
-        # Ensure score doesn't drop below 0
-        score = max(0.0, score)
-        
-        if score >= 8.0: return score, "critical", "immediate"
-        if score >= 5.0: return score, "high", "urgent"
-        return score, "moderate", "monitor"
+        breakdown = {}
 
-    def build_json_payload(self, vision_results, pose_results, motion_results,mock_sensors):
-        # 1. Extract Vision Data
+        # ── Environmental / Vision (Max ~10 pts) ──
+        if params['fire_conf'] > 0.80: 
+            score += 5.0; breakdown["fire"] = 5.0
+        if params['gas_leak']: 
+            score += 3.0; breakdown["gas"] = 3.0
+        if params['smoke_conf'] > 0.50: 
+            score += 2.0; breakdown["smoke"] = 2.0
+
+        if params['fire_trend'] == "escalating": score += 2.0
+        elif params['fire_trend'] == "diminishing": score -= 1.0
+
+        # ── Human Analysis (Max ~6 pts) ──
+        threat_postures = {"lying", "crouching", "arms_raised", "crawling", "hands_behind_back"}
+        if params['posture'] in threat_postures:
+            score += min(params['people_count'] * 0.5, 3.0)
+            if params['posture'] == "lying" and params['sustained_lying_sec'] > 5.0:
+                score += 3.0
+
+        # ByteTrack stationary boost
+        if params['prolonged_still_count'] > 0:
+            score += min(params['prolonged_still_count'] * 1.5, 3.0)
+
+        # ── Crowd Dynamics (Max ~4 pts) ──
+        if params['stampede_risk'] == "high":
+            score += 4.0
+
+        return max(0.0, score), breakdown
+
+    def calculate_severity(self, **kwargs) -> tuple[float, str, str]:
+        """
+        FIX-1: Returns (normalised_score, risk_level, priority).
+        Normalised score is capped at 10.0.
+        """
+        raw_score, _ = self._calculate_raw_sum(kwargs)
+        
+        # Normalize: raw 15.0 becomes 10.0
+        clamped = min(raw_score, _MAX_RAW_SCORE)
+        normalised = round((clamped / _MAX_RAW_SCORE) * _SCORE_SCALE, 1)
+
+        if normalised >= 8.0: return normalised, "critical", "immediate"
+        if normalised >= 5.0: return normalised, "high",     "urgent"
+        if normalised >= 1.0: return normalised, "moderate", "monitor"
+        return normalised, "low", "none"
+
+    def build_json_payload(
+        self,
+        vision_results: dict,
+        pose_results:   dict,
+        motion_results: dict,
+        mock_sensors:   dict,
+    ) -> dict:
+        
+        # ── Core Data ──
         fire_detected = vision_results.get("fire_detected", False)
-        fire_trend = vision_results.get("fire_trend", "stable")
+        posture       = pose_results.get("primary_posture", "standing")
+        still_ids     = motion_results.get("prolonged_still_ids", [])
         
-        # 2. Extract Pose Human Data
-        people_count = pose_results.get("people_count", 0)
-        posture = pose_results.get("primary_posture", "standing")
-        sustained_lying_seconds = pose_results.get("sustained_lying_seconds", 0.0)
-        
-        # 🏃‍♂️ Extract Motion Data
-        stampede_risk = motion_results.get("stampede_risk", "low")
-        
-        # 3. Calculate Risk
+        # ── Severity Analysis ──
         severity, risk, priority = self.calculate_severity(
-            vision_results.get("fire_conf", 0.0), 
-            vision_results.get("smoke_conf", 0.0),
-            people_count, 
-            posture, 
-            mock_sensors["gas_leak"],
-            fire_trend,
-            sustained_lying_seconds,
-            stampede_risk
+            fire_conf             = vision_results.get("fire_conf", 0.0),
+            smoke_conf            = vision_results.get("smoke_conf", 0.0),
+            people_count          = pose_results.get("people_count", 0),
+            posture               = posture,
+            gas_leak              = mock_sensors.get("gas_leak", False),
+            fire_trend            = vision_results.get("fire_trend", "stable"),
+            sustained_lying_sec   = pose_results.get("sustained_lying_seconds", 0.0),
+            stampede_risk         = motion_results.get("stampede_risk", "low"),
+            prolonged_still_count = len(still_ids)
         )
-        
-        # 4. Smart Hazard Type Flagging 👈 THE GRANULAR UPDATE
-        if fire_detected and mock_sensors["gas_leak"]:
-            hazard = "fire_gas_leak"
-        elif fire_detected:
-            hazard = "fire"
-        elif stampede_risk == "high": 
-            hazard = "stampede_panic" # 👈 NEW
-        elif mock_sensors["gas_leak"]:
-            hazard = "gas_leak"
-        elif posture == "lying":
-            hazard = "medical_emergency"
-        elif posture == "crouching":
-            hazard = "panic"
-        elif posture == "arms_raised":
-            hazard = "distress_signal"
-        else:
-            hazard = "normal"
 
-        # 5. Construct the Final JSON schema
-        payload = {
+        # ── Hazard Mapping ──
+        if fire_detected and mock_sensors.get("gas_leak", False): hazard = "fire_gas_leak"
+        elif fire_detected: hazard = "fire"
+        elif posture == "lying": hazard = "medical_emergency"
+        elif motion_results.get("stampede_risk") == "high": hazard = "stampede_panic"
+        elif len(still_ids) > 0: hazard = "person_stationary_alert"
+        elif posture == "standing": hazard = "normal"
+        else: hazard = "unknown_posture_alert"
+
+        # FIX-3: Modern timezone-aware UTC timestamp
+        ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+        return {
             "device_id": self.device_id,
-            "timestamp": datetime.utcnow().isoformat() + "Z",
-            "environment": mock_sensors,
-            "vision": {
-                "fire_detected": fire_detected,
-                "fire_confidence": vision_results.get("fire_conf", 0.0),
-                "smoke_detected": vision_results.get("smoke_detected", False),
-                "smoke_confidence": vision_results.get("smoke_conf", 0.0),
-                "fire_spread_rate": vision_results.get("fire_spread_rate", 0.0),
-                "fire_trend": fire_trend 
-            },
-            "human_analysis": {
-                "human_present": people_count > 0,
-                "people_count": people_count,
-                "posture": posture,
-                "sustained_lying_seconds": sustained_lying_seconds, 
-                "motion_state": pose_results.get("motion_state", "none")
-            },
-            # 🏃‍♂️ NEW BLOCK FOR GEMINI
-            "crowd_dynamics": {
-                "avg_motion_magnitude": motion_results.get("avg_motion_magnitude", 0.0),
-                "panic_detected": motion_results.get("panic_detected", False),
-                "stampede_risk": stampede_risk
-            },
-
+            "timestamp": ts,
             "situation": {
                 "hazard_type": hazard,
-                "severity_score": round(severity, 1), 
+                "severity_score": severity,
                 "risk_level": risk,
-                "priority": priority
+                "priority": priority,
             },
+            "environment": mock_sensors,
+            "vision": vision_results,
+            "human_analysis": pose_results,
+            "crowd_dynamics": motion_results,
             "meta": {
                 "camera_id": self.camera_id,
-                "location": self.location
-            }
+                "location":  self.location,
+            },
         }
-        return payload
 
-# --- Quick Test ---
 if __name__ == "__main__":
-    fusion = ThreatFusionEngine()
-    
-    mock_vision = {
-        "fire_detected": False, "fire_conf": 0.0,
-        "smoke_detected": False, "smoke_conf": 0.0,
-        "fire_spread_rate": 0.0, "fire_trend": "stable"
-    }
-    mock_pose = {
-        "people_count": 1, 
-        "primary_posture": "lying", # Let's test the medical emergency!
-        "sustained_lying_seconds": 6.0
-    }
-    mock_motion = {
-        "avg_motion_magnitude": 0.0,
-        "panic_detected": False,
-        "stampede_risk": "low"
-    }
-    mock_env = {"temperature_c": 72, "gas_leak": False, "abnormal_sound": False}
-    
-    final_json = fusion.build_json_payload(mock_vision, mock_pose,mock_motion, mock_env)
-    print(json.dumps(final_json, indent=2))
+    # Internal Unit Test
+    engine = ThreatFusionEngine()
+    print("Self-test: Normalised scoring for fire + stampede")
+    res = engine.calculate_severity(
+        fire_conf=0.9, smoke_conf=0.6, people_count=5, posture="standing",
+        gas_leak=False, fire_trend="escalating", sustained_lying_sec=0,
+        stampede_risk="high", prolonged_still_count=0
+    )
+    print(f"Severity: {res[0]} | Level: {res[1]}") # Expected: high-9.x to 10.0

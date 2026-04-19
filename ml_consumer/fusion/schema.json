@@ -1,14 +1,9 @@
 {
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
-    "device_id": {
-      "type": "string"
-    },
-    "timestamp": {
-      "type": "string",
-      "format": "date-time"
-    },
-
+    "device_id": { "type": "string" },
+    "timestamp": { "type": "string", "format": "date-time" },
     "environment": {
       "type": "object",
       "properties": {
@@ -18,23 +13,18 @@
       },
       "required": ["temperature_c", "gas_leak", "abnormal_sound"]
     },
-
     "vision": {
       "type": "object",
       "properties": {
         "fire_detected": { "type": "boolean" },
         "fire_confidence": { "type": "number" },
         "smoke_detected": { "type": "boolean" },
-        "smoke_confidence": { "type": "number" }
+        "smoke_confidence": { "type": "number" },
+        "fire_spread_rate": { "type": "number" },
+        "fire_trend": { "type": "string", "enum": ["stable", "escalating", "diminishing"] }
       },
-      "required": [
-        "fire_detected",
-        "fire_confidence",
-        "smoke_detected",
-        "smoke_confidence"
-      ]
+      "required": ["fire_detected", "fire_confidence", "smoke_detected", "smoke_confidence"]
     },
-
     "human_analysis": {
       "type": "object",
       "properties": {
@@ -42,46 +32,43 @@
         "people_count": { "type": "integer" },
         "posture": {
           "type": "string",
-          "enum": ["standing", "lying", "unknown"]
+          "enum": ["standing", "lying", "crouching", "crawling", "arms_raised", "hands_behind_back", "unknown_posture_alert"]
         },
-        "motion_state": {
-          "type": "string",
-          "enum": ["low", "none", "normal"]
-        }
+        "sustained_lying_seconds": { "type": "number" },
+        "motion_state": { "type": "string", "enum": ["none", "low", "medium", "high"] },
+        "people_crawling": { "type": "integer" },
+        "people_hands_behind_back": { "type": "integer" }
       },
-      "required": [
-        "human_present",
-        "people_count",
-        "posture",
-        "motion_state"
-      ]
+      "required": ["human_present", "people_count", "posture"]
     },
-
+    "crowd_dynamics": {
+      "type": "object",
+      "properties": {
+        "avg_motion_magnitude": { "type": "number" },
+        "panic_detected": { "type": "boolean" },
+        "stampede_risk": { "type": "string", "enum": ["low", "medium", "high"] },
+        "tracked_people_count": { "type": "integer" },
+        "prolonged_still_ids": { "type": "array", "items": { "type": "integer" } }
+      }
+    },
     "situation": {
       "type": "object",
       "properties": {
         "hazard_type": {
           "type": "string",
-          "enum": ["fire", "gas_leak", "fire_gas_leak", "normal"]
+          "enum": [
+            "fire", "gas_leak", "fire_gas_leak", "medical_emergency", 
+            "stampede_panic", "crawling_emergency", "restraint_distress", 
+            "panic", "distress_signal", "person_stationary_alert", 
+            "normal", "unknown_posture_alert"
+          ]
         },
-        "severity_score": { "type": "number" },
-        "risk_level": {
-          "type": "string",
-          "enum": ["critical", "high", "moderate"]
-        },
-        "priority": {
-          "type": "string",
-          "enum": ["immediate", "urgent", "monitor"]
-        }
+        "severity_score": { "type": "number", "minimum": 0, "maximum": 10 },
+        "risk_level": { "type": "string", "enum": ["critical", "high", "moderate", "low"] },
+        "priority": { "type": "string", "enum": ["immediate", "urgent", "monitor", "none"] }
       },
-      "required": [
-        "hazard_type",
-        "severity_score",
-        "risk_level",
-        "priority"
-      ]
+      "required": ["hazard_type", "severity_score", "risk_level", "priority"]
     },
-
     "meta": {
       "type": "object",
       "properties": {
@@ -89,16 +76,8 @@
         "location": { "type": "string" }
       },
       "required": ["camera_id", "location"]
-    }
+    },
+    "visual_evidence": { "type": "string" }
   },
-
-  "required": [
-    "device_id",
-    "timestamp",
-    "environment",
-    "vision",
-    "human_analysis",
-    "situation",
-    "meta"
-  ]
+  "required": ["device_id", "timestamp", "situation", "meta"]
 }

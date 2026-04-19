@@ -4,10 +4,13 @@ kalu
 .env
 build/
 chota
-weights
 __pycache__/
 *.pyc
 .venv/
 *.log
 *.mp4
 outputs/
+ml_consumer/outputs/
+ml_consumer/testing_data/
+weights/
+*.pt

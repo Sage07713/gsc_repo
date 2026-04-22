@@ -14,3 +14,7 @@ ml_consumer/testing_data/
 
 weights/
 *.pt
+
+
+chota/
+server/build/

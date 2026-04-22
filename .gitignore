@@ -9,12 +9,17 @@ __pycache__/
 *.log
 *.mp4
 
+# Project-specific
+kalu
+chota/
+build/
+server/build/
+
+# ML outputs
+outputs/
 ml_consumer/outputs/
 ml_consumer/testing_data/
 
+# Model files
 weights/
 *.pt
-
-
-chota/
-server/build/
